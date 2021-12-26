@@ -225,7 +225,6 @@ load_test() {
 	kubectl exec -it "${pod_name}" -- /bin/sh -c 'apt update && apt -y upgrade && apt install -y apache2-utils'
 	printf "\nRunning load test using apache bench, please wait...\n"
 	kubectl exec -it "${pod_name}" -- ab -n 1000000 -c 50 -H "Host: ${INGRESS_HOST}"  "${INGRESS_URL_PREFIX}/foo"
-	kubectl exec -it "${pod_name}" -- ab -n 1000000 -c 50 -H "Host: ${INGRESS_HOST}"  "${INGRESS_URL_PREFIX}/bar"
 	printf "\n✓ Load test done\n"
 	printf "\nDeleting load test pod...\n"
 	kubectl delete po/"${pod_name}"
