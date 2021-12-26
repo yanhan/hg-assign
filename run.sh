@@ -21,8 +21,8 @@ main() {
 	check_nginx_ingress_metrics_scraped
 	check_foo_bar
 	load_test
-	printf "\nSleeping for 30s before progressing...\n"
-	sleep 30
+	printf "\nSleeping for 60s before progressing...\n"
+	sleep 60
 	generate_metrics_csv_file "${start_ts}"
 	delete_debian_pod
 	printf "\nAll done. Please remember to delete the cluster %s when you no longer need it.\n"  "${cluster_name}"
