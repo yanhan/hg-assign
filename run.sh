@@ -5,6 +5,8 @@ IFS=$'\n\t'
 
 readonly DEFAULT_KUBECTL_WAIT_TIMEOUT=60s
 readonly DEBIAN_POD_NAME=gpdebian
+readonly INGRESS_HOST=demo.hgassign.dev
+readonly INGRESS_URL_PREFIX=http://ingress-nginx-nginx-ingress
 
 main() {
 	declare -r cluster_name=hga
@@ -15,6 +17,7 @@ main() {
 	deploy_foo_bar
 	run_debian_pod
 	check_nginx_ingress_metrics_scraped
+	check_foo_bar
 	delete_debian_pod
 }
 
@@ -179,6 +182,29 @@ check_nginx_ingress_metrics_scraped() {
 delete_debian_pod() {
 	printf "\nDeleting pod %s...\n"  "${DEBIAN_POD_NAME}"
 	kubectl delete po/"${DEBIAN_POD_NAME}"
+}
+
+check_foo_bar() {
+	declare -r pod_name=${DEBIAN_POD_NAME}
+	declare -r foo_response_file=tmp/foo-response.txt
+	declare -r bar_response_file=tmp/bar-response.txt
+	declare -r foo_url="${INGRESS_URL_PREFIX}/foo"
+	declare -r bar_url="${INGRESS_URL_PREFIX}/bar"
+	printf "\nVerifying ingress routes for foo and bar...\n"
+	kubectl exec -it "${pod_name}" -- curl -s -H "Host: ${INGRESS_HOST}"  "${foo_url}" | tr -d '\r' >"${foo_response_file}"
+	if [ "$(cat "${foo_response_file}")" != "foo" ]; then
+		printf "\nHTTP GET to %s does not return foo . Please debug this. Exiting.\n"  "${foo_url}"
+		exit 1
+	fi
+	rm -f "${foo_response_file}"
+
+	kubectl exec -it "${pod_name}" -- curl -s -H "Host: demo.hgassign.dev"  "${bar_url}" | tr -d '\r' >"${bar_response_file}"
+	if [ "$(cat "${bar_response_file}")" != "bar" ]; then
+		printf "\nHTTP GET to %s does not return bar . Please debug this. Exiting.\n"  "${bar_url}"
+		exit 1
+	fi
+	rm -f "${bar_response_file}"
+	printf "✓ Ingress routes for foo and bar ok\n"
 }
 
 main "$@"
