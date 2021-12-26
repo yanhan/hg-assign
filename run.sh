@@ -19,6 +19,7 @@ main() {
 	check_nginx_ingress_metrics_scraped
 	check_foo_bar
 	delete_debian_pod
+	load_test
 }
 
 check_dependencies() {
@@ -205,6 +206,22 @@ check_foo_bar() {
 	fi
 	rm -f "${bar_response_file}"
 	printf "✓ Ingress routes for foo and bar ok\n"
+}
+
+load_test() {
+	declare -r pod_name=load-test
+	printf "\nSpinning up pod for load test...\n"
+	kubectl run "${pod_name}" --image=debian:bullseye --restart=Never -- sleep 3600
+	printf "\nWaiting for load test pod to be ready...\n"
+	kubectl wait --for=condition=ready po/"${pod_name}" --timeout="${DEFAULT_KUBECTL_WAIT_TIMEOUT}"
+	printf "\n✓ Load test pod ready\n"
+	kubectl exec -it "${pod_name}" -- /bin/sh -c 'apt update && apt -y upgrade && apt install -y apache2-utils'
+	printf "\nRunning load test using apache bench, please wait...\n"
+	kubectl exec -it "${pod_name}" -- ab -n 1000000 -c 50 -H "Host: ${INGRESS_HOST}"  "${INGRESS_URL_PREFIX}/foo"
+	kubectl exec -it "${pod_name}" -- ab -n 1000000 -c 50 -H "Host: ${INGRESS_HOST}"  "${INGRESS_URL_PREFIX}/bar"
+	printf "\n✓ Load test done\n"
+	printf "\nDeleting load test pod...\n"
+	kubectl delete po/"${pod_name}"
 }
 
 main "$@"
