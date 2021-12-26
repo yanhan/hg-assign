@@ -10,6 +10,7 @@ main() {
 	check_dependencies
 	create_kind_cluster "${cluster_name}"
 	install_prometheus
+	install_nginx_ingress
 }
 
 check_dependencies() {
@@ -111,6 +112,19 @@ install_prometheus() {
 	kubectl wait --for=condition=ready po -l app.kubernetes.io/name=prometheus --timeout="${timeout}"
 	kubectl wait --for=condition=ready po -l app=prometheus-node-exporter --timeout="${timeout}"
 	printf "\n✓ Prometheus ready\n"
+}
+
+install_nginx_ingress() {
+	printf "\nInstalling nginx ingress...\n"
+	helm repo add nginx-stable https://helm.nginx.com/stable
+	helm repo update
+	helm install ingress-nginx nginx-stable/nginx-ingress --set prometheus.create=true --version 0.11.3
+	printf "\nWaiting for nginx ingress to be ready...\n"
+	kubectl wait --for=condition=ready po -l app=ingress-nginx-nginx-ingress --timeout=60s
+	printf "\nPatching nginx ingress service for metrics and installing ServiceMonitor...\n"
+	kubectl patch svc/ingress-nginx-nginx-ingress --type strategic --patch "$(cat nginx/patch.yml)"
+	kubectl apply -f nginx/service-monitor.yml
+	printf "\n✓ nginx ingress ready\n"
 }
 
 main "$@"
