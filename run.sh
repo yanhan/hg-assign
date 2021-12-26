@@ -4,6 +4,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 readonly DEFAULT_KUBECTL_WAIT_TIMEOUT=60s
+readonly DEBIAN_POD_NAME=gpdebian
 
 main() {
 	declare -r cluster_name=hga
@@ -12,6 +13,9 @@ main() {
 	install_prometheus
 	install_nginx_ingress
 	deploy_foo_bar
+	run_debian_pod
+	check_nginx_ingress_metrics_scraped
+	delete_debian_pod
 }
 
 check_dependencies() {
@@ -140,6 +144,41 @@ deploy_foo_bar() {
 	kubectl wait --for=condition=ready po --selector=app=bar --timeout="${timeout}"
 	kubectl apply -f ./foobar-ingress.yml
 	printf "\n✓ foo and bar ready\n"
+}
+
+run_debian_pod() {
+	declare -r pod_name=${DEBIAN_POD_NAME}
+	printf "\nRunning general purpose debian pod...\n"
+	kubectl run "${pod_name}" --image=debian:bullseye --restart=Never -- sleep 3600
+	printf "\nWaiting for debian pod to be ready...\n"
+	kubectl wait --for=condition=ready po/"${pod_name}" --timeout=60s
+	printf "\n✓ Debian pod ready... installing curl on it...\n"
+	kubectl exec -it "${pod_name}" -- /bin/sh -c 'apt update && apt -y upgrade && apt install -y curl'
+}
+
+check_nginx_ingress_metrics_scraped() {
+	declare -r targets_filename=tmp/targets.json
+	declare -r pod_name=${DEBIAN_POD_NAME}
+	local nginxIngressMonitored
+	for i in {1..5}; do
+		printf "\nChecking that prometheus is scraping nginx metrics...\n"
+		kubectl exec -it "${pod_name}" -- curl -s 'http://prometheus-kube-prometheus-prometheus:9090/api/v1/targets?active=true' >"${targets_filename}"
+		nginxIngressMonitored="$(jq -r 'any(.data.activeTargets[].labels.container=="ingress-nginx-nginx-ingress"; .)' <"${targets_filename}")"
+		if [ "${nginxIngressMonitored}" == "true" ]; then
+			printf "✓ Prometheus is scraping nginx metrics\n"
+			rm -f "${targets_filename}"
+			return
+		fi
+		sleep 30
+	done
+
+	printf "\nPrometheus is not scraping nginx metrics. Please debug it. Exiting.\n"
+	exit 1
+}
+
+delete_debian_pod() {
+	printf "\nDeleting pod %s...\n"  "${DEBIAN_POD_NAME}"
+	kubectl delete po/"${DEBIAN_POD_NAME}"
 }
 
 main "$@"
