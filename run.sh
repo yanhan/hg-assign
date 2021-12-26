@@ -135,6 +135,7 @@ install_nginx_ingress() {
 	helm repo update
 	helm install ingress-nginx nginx-stable/nginx-ingress --set prometheus.create=true --version 0.11.3
 	printf "\nWaiting for nginx ingress to be ready...\n"
+	sleep 5
 	kubectl wait --for=condition=ready po -l app=ingress-nginx-nginx-ingress --timeout=60s
 	printf "\nPatching nginx ingress service for metrics and installing ServiceMonitor...\n"
 	kubectl patch svc/ingress-nginx-nginx-ingress --type strategic --patch "$(cat nginx/patch.yml)"
