@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: foobar
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "demo.hgassign.dev"
+      http:
+        paths:
+          - path: /foo
+            pathType: Prefix
+            backend:
+              service:
+                name: foo
+                port:
+                  number: 5678
+          - path: /bar
+            pathType: Prefix
+            backend:
+              service:
+                name: bar
+                port:
+                  number: 5678

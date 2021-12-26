@@ -11,6 +11,7 @@ main() {
 	create_kind_cluster "${cluster_name}"
 	install_prometheus
 	install_nginx_ingress
+	deploy_foo_bar
 }
 
 check_dependencies() {
@@ -125,6 +126,20 @@ install_nginx_ingress() {
 	kubectl patch svc/ingress-nginx-nginx-ingress --type strategic --patch "$(cat nginx/patch.yml)"
 	kubectl apply -f nginx/service-monitor.yml
 	printf "\n✓ nginx ingress ready\n"
+}
+
+deploy_foo_bar() {
+	declare -r timeout=${DEFAULT_KUBECTL_WAIT_TIMEOUT}
+	printf "\nDeploying foo and bar services, as well as create ingress..."
+	kubectl apply -f ./foo.yml
+	kubectl expose deploy/foo --name foo --target-port=foo
+	kubectl apply -f ./bar.yml
+	kubectl expose deploy/bar --name bar --target-port=bar
+	printf "\nWaiting for foo and bar to be ready...\n"
+	kubectl wait --for=condition=ready po --selector=app=foo --timeout="${timeout}"
+	kubectl wait --for=condition=ready po --selector=app=bar --timeout="${timeout}"
+	kubectl apply -f ./foobar-ingress.yml
+	printf "\n✓ foo and bar ready\n"
 }
 
 main "$@"

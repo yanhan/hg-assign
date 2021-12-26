@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bar
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: bar
+  template:
+    metadata:
+      labels:
+        app: bar
+    spec:
+      containers:
+        - name: bar
+          image: hashicorp/http-echo
+          args:
+            - -listen=:5678
+            - -text=bar
+          ports:
+            - name: bar
+              containerPort: 5678
