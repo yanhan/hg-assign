@@ -46,7 +46,7 @@ Please follow the instructions in each of the links given.
 
 ## Tested on
 
-- Ubuntu Linux 20.04, docker 20.10.12, kind 0.11.1, kubectl 1.23, python 3.8.0
+- Ubuntu Linux 20.04, docker 20.10.12, kind 0.11.1, kubectl 1.23, helm v3.7.2, python 3.8.0
 - Mac OS Big Sur 11.6, docker 20.10.11, kind 0.11.1, kubectl 1.22.4, helm v3.7.2, python 3.9.1
 
 
