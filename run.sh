@@ -10,16 +10,22 @@ readonly INGRESS_URL_PREFIX=http://ingress-nginx-nginx-ingress
 
 main() {
 	declare -r cluster_name=hga
+	local start_ts
 	check_dependencies
 	create_kind_cluster "${cluster_name}"
 	install_prometheus
+	start_ts="$(date +%s)"
 	install_nginx_ingress
 	deploy_foo_bar
 	run_debian_pod
 	check_nginx_ingress_metrics_scraped
 	check_foo_bar
-	delete_debian_pod
 	load_test
+	printf "\nSleeping for 30s before progressing...\n"
+	sleep 30
+	generate_metrics_csv_file "${start_ts}"
+	delete_debian_pod
+	printf "\nAll done. Please remember to delete the cluster %s when you no longer need it.\n"  "${cluster_name}"
 }
 
 check_dependencies() {
@@ -222,6 +228,29 @@ load_test() {
 	printf "\n✓ Load test done\n"
 	printf "\nDeleting load test pod...\n"
 	kubectl delete po/"${pod_name}"
+}
+
+generate_metrics_csv_file() {
+	declare -r pod_name="${DEBIAN_POD_NAME}"
+	declare -r prom_url_prefix=http://prometheus-kube-prometheus-prometheus:9090
+	declare -r requests_file=tmp/requests.json
+	declare -r cpu_file=tmp/cpu.json
+	declare -r memory_file=tmp/memory.json
+	declare -r metrics_csv_file=metrics.csv
+	local start_ts=${1}
+	local end_ts
+	end_ts="$(date +%s)"
+	printf "\nExtracting metrics from Prometheus...\n"
+	kubectl exec -it "${pod_name}" -- curl -s "${prom_url_prefix}/api/v1/query_range?query=rate%28nginx_ingress_nginx_http_requests_total%5B5m%5D%29&start=${start_ts}&end=${end_ts}&step=30" | jq -r '.data.result[0].values' > "${requests_file}"
+	kubectl exec -it "${pod_name}" -- curl -s "${prom_url_prefix}/api/v1/query_range?query=sum%28rate%28container_cpu_usage_seconds_total%7Bcontainer%3D%22ingress-nginx-nginx-ingress%22%7D%5B5m%5D%29%29&start=${start_ts}&end=${end_ts}&step=30" | jq -r '.data.result[0].values' >"${cpu_file}"
+	kubectl exec -it "${pod_name}" -- curl -s "${prom_url_prefix}/api/v1/query_range?query=container_memory_usage_bytes%7Bcontainer%3D%22ingress-nginx-nginx-ingress%22%7D&start=${start_ts}&end=${end_ts}&step=30" | jq -r '.data.result[0].values' >"${memory_file}"
+	printf "\nGenerating %s ...\n"  "${metrics_csv_file}"
+	python gencsv.py \
+		--requests-file "${requests_file}" \
+		--cpu-file "${cpu_file}" \
+		--memory-file "${memory_file}" \
+		--output "${metrics_csv_file}"
+	printf "\n✓ Generated %s\n"  "${metrics_csv_file}"
 }
 
 main "$@"
