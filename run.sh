@@ -3,10 +3,13 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+readonly DEFAULT_KUBECTL_WAIT_TIMEOUT=60s
+
 main() {
 	declare -r cluster_name=hga
 	check_dependencies
 	create_kind_cluster "${cluster_name}"
+	install_prometheus
 }
 
 check_dependencies() {
@@ -94,6 +97,20 @@ create_kind_cluster() {
 	kubectl wait --for=condition=ready "node/${cluster_name}-worker2" --timeout="${timeout}"
 	kubectl wait --for=condition=ready "node/${cluster_name}-worker3" --timeout="${timeout}"
 	printf "✓  Cluster nodes ready\n"
+}
+
+install_prometheus() {
+	declare -r timeout=${DEFAULT_KUBECTL_WAIT_TIMEOUT}
+	printf "\nInstalling Prometheus...\n"
+	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+	helm repo update
+	helm install prometheus prometheus-community/kube-prometheus-stack --version 25.1.0
+	printf "\nWaiting for Prometheus to be ready...\n"
+	kubectl wait --for=condition=ready po -l app=kube-prometheus-stack-operator --timeout="${timeout}"
+	kubectl wait --for=condition=ready po -l app.kubernetes.io/name=kube-state-metrics --timeout="${timeout}"
+	kubectl wait --for=condition=ready po -l app.kubernetes.io/name=prometheus --timeout="${timeout}"
+	kubectl wait --for=condition=ready po -l app=prometheus-node-exporter --timeout="${timeout}"
+	printf "\n✓ Prometheus ready\n"
 }
 
 main "$@"
