@@ -1,6 +1,6 @@
 # About
 
-Take home assignment
+Take home assignment for HG
 
 
 ## Overview
@@ -43,11 +43,14 @@ Please follow the instructions in each of the links given.
 - kubectl: https://kubernetes.io/docs/tasks/tools/
 - jq: https://stedolan.github.io/jq/download/
 
+If you are running on Amazon Linux 2 x86-64, you can run the `amzn-ec2-prereqs.sh` script to install the above prereqs. Please ensure that its root device has at least 10GiB of space. After the script is run, you will need to logout and login again to run the docker client without using sudo.
+
 
 ## Tested on
 
 - Ubuntu Linux 20.04, docker 20.10.12, kind 0.11.1, kubectl 1.23, helm v3.7.2, python 3.8.0
 - Mac OS Big Sur 11.6, docker 20.10.11, kind 0.11.1, kubectl 1.22.4, helm v3.7.2, python 3.9.1
+- Amazon Linux 2 (ami-0d1d4b8d5a0cd293f) m6i.2xlarge with 32GiB root device, docker 20.10.7, kind 0.11.1, kubectl 1.21.1, helm v3.7.2, python 2.7.18
 
 
 ## Running
