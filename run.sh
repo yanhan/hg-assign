@@ -172,7 +172,7 @@ check_nginx_ingress_metrics_scraped() {
 	declare -r pod_name=${DEBIAN_POD_NAME}
 	local nginxIngressMonitored
 	for i in {1..5}; do
-		printf "\nChecking that prometheus is scraping nginx metrics...\n"
+		printf "\nChecking that prometheus is scraping nginx metrics (attempt %d)...\n"  "${i}"
 		kubectl exec -it "${pod_name}" -- curl -s 'http://prometheus-kube-prometheus-prometheus:9090/api/v1/targets?active=true' >"${targets_filename}"
 		nginxIngressMonitored="$(jq -r 'any(.data.activeTargets[].labels.container=="ingress-nginx-nginx-ingress"; .)' <"${targets_filename}")"
 		if [ "${nginxIngressMonitored}" == "true" ]; then
